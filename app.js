@@ -19,6 +19,7 @@ const expertNote = document.querySelector('#expertNote');
 const resultLabel = document.querySelector('#resultLabel');
 const forecastStation = document.querySelector('#forecastStation');
 const forecastDisclaimer = document.querySelector('#forecastDisclaimer');
+const foundAtInput = document.querySelector('#foundAt');
 
 function showToast(message) {
   toast.textContent = message;
@@ -30,6 +31,13 @@ function showAiResult() {
   aiEmpty.hidden = true;
   aiResult.hidden = false;
 }
+
+function localDateTimeValue(date) {
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return offsetDate.toISOString().slice(0, 16);
+}
+
+foundAtInput.value = localDateTimeValue(new Date());
 
 function renderAiResult(result, source = 'AI') {
   const candidates = Array.isArray(result.candidates) ? result.candidates : [];
@@ -143,7 +151,8 @@ function compassDirection(degrees) {
 
 function calculateSearchDistance(current) {
   const profile = speciesProfiles[primarySpecies.textContent.trim()] || speciesProfiles.default;
-  const elapsedHours = 6;
+  const reportedAt = new Date(foundAtInput.value);
+  const elapsedHours = Number.isNaN(reportedAt.getTime()) ? 0 : Math.max(0, (Date.now() - reportedAt.getTime()) / 3_600_000);
   const speedKmh = Number(current.speedCms) * 0.036;
   const currentDistance = speedKmh * elapsedHours * profile.driftRatio;
   const activeDistance = profile.selfMoveKmh * elapsedHours;
@@ -180,7 +189,7 @@ recalculate.addEventListener('click', async () => {
     document.querySelector('#distanceValue').textContent = `${calculation.distanceKm.toFixed(1)} km`;
     forecastStation.textContent = `${liveData.current.stationName} · ${liveData.current.predictedAt} 기준`;
     document.querySelector('.direction-label').textContent = `${calculation.direction} 방향`;
-    forecastDisclaimer.textContent = `※ 실제 조류예보 API 유향·유속으로 계산했습니다. ${calculation.profile.label}(${Math.round(calculation.profile.driftRatio * 100)}% 표류)와 6시간 경과를 적용한 수색 우선 범위입니다.`;
+    forecastDisclaimer.textContent = `※ 공공 API 유향·유속으로 계산했습니다. ${calculation.profile.label}(${Math.round(calculation.profile.driftRatio * 100)}% 표류)와 발견 시각부터 현재까지 ${calculation.elapsedHours.toFixed(1)}시간 경과를 적용한 수색 우선 범위입니다.`;
     resizeSearchRange(calculation.distanceKm);
     showToast('공공 API가 제공한 유향·유속으로 수색 범위를 계산했습니다.');
   } catch (error) {
