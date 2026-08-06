@@ -158,8 +158,16 @@ class AppHandler(SimpleHTTPRequestHandler):
                 response_data = json.loads(remote.read().decode("utf-8"))
             text = next(part["text"] for part in response_data["candidates"][0]["content"]["parts"] if "text" in part)
             json_response(self, HTTPStatus.OK, model_json(text))
+        except urllib.error.HTTPError as error:
+            try:
+                provider_error = json.loads(error.read().decode("utf-8", errors="replace"))
+                provider_message = str(provider_error.get("error", {}).get("message", "Google Gemini가 요청을 거절했습니다."))
+            except Exception:
+                provider_message = "Google Gemini가 요청을 거절했습니다."
+            safe_message = re.sub(r"[\r\n]+", " ", provider_message)[:280]
+            json_response(self, HTTPStatus.BAD_GATEWAY, {"error": f"Gemini {error.code}: {safe_message}"})
         except Exception:
-            json_response(self, HTTPStatus.BAD_GATEWAY, {"error": "Gemini 판별 중 오류가 발생했습니다. 키와 네트워크를 확인해 주세요."})
+            json_response(self, HTTPStatus.BAD_GATEWAY, {"error": "Gemini 연결 중 오류가 발생했습니다. 네트워크와 API 키를 확인해 주세요."})
 
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)

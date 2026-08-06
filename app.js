@@ -47,7 +47,11 @@ function renderAiResult(result, source = 'AI') {
   primarySpecies.textContent = first.name_ko || '판별 불가';
   confidenceValue.textContent = `${confidence}%`;
   confidenceBar.style.width = `${confidence}%`;
-  resultLabel.textContent = source === 'Gemini' ? 'Gemini가 사진 특징을 분석했어요' : '시연용 사진 특징 분석 결과입니다';
+  resultLabel.textContent = source === 'Gemini'
+    ? 'Gemini가 사진 특징을 분석했어요'
+    : source === 'Error'
+      ? 'Gemini 연결 오류를 확인해 주세요'
+      : '시연용 사진 특징 분석 결과입니다';
   featureTags.replaceChildren(...(first.features || ['특징을 분석 중']).slice(0, 4).map((feature) => {
     const item = document.createElement('li');
     item.textContent = feature;
@@ -71,8 +75,11 @@ async function requestSpeciesIdentification(file) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ image }),
   });
-  if (!response.ok) throw new Error('판별 API를 사용할 수 없습니다.');
-  return response.json();
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || `AI 서버 응답 오류 (${response.status})`);
+  }
+  return payload;
 }
 
 photoInput.addEventListener('change', () => {
@@ -105,13 +112,12 @@ reportForm.addEventListener('submit', async (event) => {
   } catch (error) {
     renderAiResult({
       candidates: [
-        { name_ko: '붉은불가사리', confidence: 78, features: ['붉은 주황색', '두꺼운 팔', '거친 표면'] },
-        { name_ko: '불가사리류' }, { name_ko: '해변말미잘류' },
+        { name_ko: 'AI 판별을 완료하지 못했습니다', confidence: 0, features: [error.message] },
       ],
       needs_expert_review: true,
-      safety_message: '배포 전에는 시연용 결과가 표시됩니다.',
-    });
-    showToast('AI 서버를 찾지 못해 시연용 결과를 표시했습니다.');
+      safety_message: 'API 키 또는 Gemini 모델 설정을 확인한 뒤 다시 시도해 주세요.',
+    }, 'Error');
+    showToast(`AI 판별 오류: ${error.message}`);
   } finally {
     submitButton.disabled = false;
     submitButton.innerHTML = 'AI로 종 후보 확인하기 <span>→</span>';
