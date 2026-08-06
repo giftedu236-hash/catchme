@@ -46,12 +46,20 @@ export default async function handler(request, response) {
         generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
       }),
     });
-    if (!geminiResponse.ok) throw new Error(`Gemini 응답 오류: ${geminiResponse.status}`);
+    if (!geminiResponse.ok) {
+      const providerError = await geminiResponse.json().catch(() => ({}));
+      const providerMessage = String(providerError?.error?.message || 'Google Gemini가 요청을 거절했습니다.')
+        .replace(/[\r\n]+/g, ' ')
+        .slice(0, 280);
+      throw new Error(`Gemini ${geminiResponse.status}: ${providerMessage}`);
+    }
     const geminiData = await geminiResponse.json();
     const text = geminiData.candidates?.[0]?.content?.parts?.find((part) => part.text)?.text;
     if (!text) throw new Error('Gemini가 판별 결과를 반환하지 않았습니다.');
     return response.status(200).json(parseModelJson(text));
   } catch (error) {
-    return response.status(502).json({ error: 'AI 판별 중 오류가 발생했습니다.' });
+    const message = String(error?.message || 'AI 판별 중 오류가 발생했습니다.').slice(0, 320);
+    console.error('Gemini identification failed:', message);
+    return response.status(502).json({ error: message });
   }
 }
