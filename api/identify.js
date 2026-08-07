@@ -1,7 +1,8 @@
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
+
 const JSON_INSTRUCTIONS = `
 You are assisting with reports of suspected invasive marine species in Busan, South Korea.
-Analyze only what is visually supported by the image. Do not identify with certainty.
+First identify the actual animal, plant, or organism shown in the image, even when it is terrestrial, not marine, or not an invasive species. Analyze only what is visually supported by the image. Do not identify with certainty.
 Return strict JSON with this exact shape:
 {
   "candidates": [
@@ -12,7 +13,7 @@ Return strict JSON with this exact shape:
   "needs_expert_review": true,
   "safety_message":"Short Korean safety guidance"
 }
-Use Korean text. If the image is not a marine organism or is unclear, say "판별 불가" as the first name and set confidence to 0. Never say a species is confirmed.`;
+Use Korean text. Confidence must be an INTEGER PERCENTAGE from 0 to 100, never a decimal probability from 0 to 1. Confidence means visual similarity to the named candidate only; do not lower it merely because the animal is terrestrial, not marine, or may not be an invasive species. Use 80 to 95 for a clear, distinctive species photo, 50 to 79 when the taxon is reasonably supported but not certain, and below 50 only when key visual details are missing. If the image is truly unclear or does not contain an organism, say "미확인 생물" as the first name and set confidence to 0. Never say a species is confirmed. For a clearly visible capybara, name it "카피바라" and use a visual confidence appropriate to the image, normally 85 or higher.`;
 
 function extractImage(payload) {
   const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(payload || '');
@@ -25,6 +26,25 @@ function extractImage(payload) {
 function parseModelJson(text) {
   const withoutFence = text.trim().replace(/^```json\s*/i, '').replace(/\s*```$/, '');
   return JSON.parse(withoutFence);
+}
+
+function normalizeConfidence(value) {
+  const numeric = Number.parseFloat(value);
+  if (!Number.isFinite(numeric)) return 0;
+  // Gemini occasionally returns a 0–1 probability even when asked for a percentage.
+  const percentage = numeric > 0 && numeric <= 1 ? numeric * 100 : numeric;
+  return Math.round(Math.max(0, Math.min(100, percentage)));
+}
+
+function normalizeIdentification(result) {
+  const candidates = Array.isArray(result?.candidates) ? result.candidates : [];
+  return {
+    ...result,
+    candidates: candidates.map((candidate) => ({
+      ...candidate,
+      confidence: normalizeConfidence(candidate?.confidence),
+    })),
+  };
 }
 
 export default async function handler(request, response) {
@@ -56,7 +76,7 @@ export default async function handler(request, response) {
     const geminiData = await geminiResponse.json();
     const text = geminiData.candidates?.[0]?.content?.parts?.find((part) => part.text)?.text;
     if (!text) throw new Error('Gemini가 판별 결과를 반환하지 않았습니다.');
-    return response.status(200).json(parseModelJson(text));
+    return response.status(200).json(normalizeIdentification(parseModelJson(text)));
   } catch (error) {
     const message = String(error?.message || 'AI 판별 중 오류가 발생했습니다.').slice(0, 320);
     console.error('Gemini identification failed:', message);
