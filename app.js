@@ -387,7 +387,6 @@ function drawSearchMap(location, station, calculation) {
   if (!searchMap || !searchLayers) return;
   searchLayers.clearLayers();
   const destination = destinationPoint(location, calculation.directionDeg, calculation.distanceKm);
-  const firstSearchPoint = destinationPoint(location, calculation.directionDeg, calculation.distanceKm * 0.55);
   const originLatLng = [location.latitude, location.longitude];
   const destinationLatLng = [destination.latitude, destination.longitude];
   window.L.marker(originLatLng, { icon: markerIcon('발') }).addTo(searchLayers).bindPopup('<b>발견 지점</b>');
@@ -395,14 +394,18 @@ function drawSearchMap(location, station, calculation) {
     .bindPopup(`<b>사용 조류예보 지점</b><br />${station.name} · ${station.distanceKm.toFixed(1)} km`);
   window.L.polyline([originLatLng, destinationLatLng], { color: '#0a7187', weight: 4, dashArray: '8 8' }).addTo(searchLayers);
   const originRangeRadius = Math.max(3000, calculation.distanceKm * 900);
-  const destinationRangeRadius = Math.max(2100, calculation.distanceKm * 650);
+  const destinationRangeRadius = Math.max(3000, calculation.distanceKm * 750);
   window.L.circle(originLatLng, { radius: originRangeRadius, color: '#ef735f', weight: 1, fillColor: '#f48b78', fillOpacity: 0.2 }).addTo(searchLayers)
     .bindPopup(`<b>예상 이동 범위</b><br />출발 지점 주변 약 ${(originRangeRadius / 1000).toFixed(1)} km`);
-  window.L.circle(destinationLatLng, { radius: destinationRangeRadius, color: '#ef735f', weight: 1, fillColor: '#f48b78', fillOpacity: 0.15 }).addTo(searchLayers);
-  window.L.marker([firstSearchPoint.latitude, firstSearchPoint.longitude], { icon: markerIcon('1', 'search') }).addTo(searchLayers)
-    .bindPopup('<b>1차 수색 우선 지점</b><br />발견 지점과 예상 도착 지점 사이 구간');
-  window.L.marker(destinationLatLng, { icon: markerIcon('2', 'search') }).addTo(searchLayers)
-    .bindPopup(`<b>2차 수색 우선 지점</b><br />예상 이동 거리 ${calculation.distanceKm.toFixed(1)} km`);
+  window.L.circle(destinationLatLng, {
+    radius: destinationRangeRadius,
+    color: '#e45f4d',
+    weight: 2,
+    dashArray: '8 6',
+    fillColor: '#f48776',
+    fillOpacity: 0.22,
+  }).addTo(searchLayers)
+    .bindPopup(`<b>예상 수색 위치</b><br />중심에서 약 ${(destinationRangeRadius / 1000).toFixed(1)} km 범위`);
   searchMap.fitBounds(window.L.latLngBounds([originLatLng, destinationLatLng, [station.latitude, station.longitude]]), { padding: [35, 35], maxZoom: 14 });
 }
 
