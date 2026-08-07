@@ -11,10 +11,21 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="styles.css?v=20260807-clean" />
     <link rel="stylesheet" href="hero.css?v=20260807-hero" />
+    <link rel="stylesheet" href="roles.css?v=20260807-roles" />
+    <link rel="stylesheet" href="roles-view.css?v=20260807-roles" />
   </head>
   <body>
+    <section class="role-portal" id="rolePortal" aria-labelledby="rolePortalTitle">
+      <div class="portal-brand"><span class="brand-mark">⌁</span><span>바다지킴이 <b>BUSAN</b></span></div>
+      <div class="portal-copy"><p class="eyebrow">MARINE INVASIVE SPECIES RESPONSE</p><h1 id="rolePortalTitle">어떤 업무를<br /><em>시작할까요?</em></h1><p>현장 신고와 대응 분석을 분리해, 더 빠르게 기록하고 확인합니다.</p></div>
+      <div class="role-choice-grid">
+        <button class="role-choice reporter-choice" type="button" data-role="reporter"><span>01</span><b>신고자</b><strong>현장 신고하기</strong><p>사진과 발견 위치를 기록하고 AI 후보 분석을 받습니다.</p><i>신고 시작 →</i></button>
+        <button class="role-choice manager-choice" type="button" data-role="manager"><span>02</span><b>관리자</b><strong>접수 현황 분석</strong><p>접수된 신고를 우선순위와 수색 정보로 확인합니다.</p><i>분석 화면 →</i></button>
+      </div>
+      <p class="portal-note">제출용 버전: 신고 정보는 현재 브라우저에만 저장됩니다.</p>
+    </section>
     <header class="topbar">
-      <a class="brand" href="#home" aria-label="바다지킴이 부산 홈">
+      <a class="brand" href="#home" id="homeButton" aria-label="바다지킴이 부산 홈">
         <span class="brand-mark" aria-hidden="true">⌁</span>
         <span>바다지킴이 <b>BUSAN</b></span>
       </a>
@@ -22,6 +33,7 @@
         <a href="#report">신고하기</a>
         <a href="#map">현황 지도</a>
         <a href="#guide">외래종 도감</a>
+        <a href="#admin" id="adminNav">관리자 분석</a>
       </nav>
       <a class="outline-button" href="#report">현장 신고</a>
     </header>
@@ -105,7 +117,7 @@
             <div class="form-step"><span>03</span><div><label for="foundAt">발견 시각</label><input id="foundAt" type="datetime-local" required /><small class="field-hint">발견 시각부터 현재까지의 경과 시간을 이동거리 계산에 사용합니다.</small></div></div>
             <div class="form-step"><span>04</span><div><label for="details">추가 정보 <small>선택</small></label><textarea id="details" rows="3" placeholder="크기, 색, 개체 수처럼 눈에 띈 점을 적어 주세요."></textarea></div></div>
             <div class="consent"><input id="consent" type="checkbox" required /><label for="consent">사진과 신고 내용이 외래종 확인 및 대응 목적으로 사용됨에 동의합니다.</label></div>
-            <button class="submit-button" type="submit">AI로 종 후보 확인하기 <span>→</span></button>
+            <button class="submit-button" type="submit">AI 분석 후 신고 접수하기 <span>→</span></button>
           </form>
 
           <aside class="ai-card" id="aiCard" aria-live="polite">
@@ -133,8 +145,15 @@
       </section>
 
       <section class="guide-section" id="guide"><div class="section-heading"><div><p class="eyebrow">FIELD GUIDE</p><h2>발견 시 이렇게 해주세요</h2></div></div><div class="guide-grid"><article><span>01</span><h3>안전거리 확보</h3><p>독성·가시가 의심되면 만지거나 옮기지 말고 주변 사람에게 알립니다.</p></article><article><span>02</span><h3>특징이 보이게 촬영</h3><p>전신과 무늬, 크기 비교가 가능한 물체를 함께 찍어 주세요.</p></article><article><span>03</span><h3>위치와 시간을 기록</h3><p>발견 장소와 시각이 있어야 이동 경로를 더 잘 추정할 수 있습니다.</p></article></div></section>
+      <section class="admin-dashboard" id="adminDashboard" hidden aria-labelledby="adminTitle">
+        <div class="admin-heading"><div><p class="eyebrow">MANAGER CONSOLE</p><h2 id="adminTitle">접수 신고 분석</h2><p>이 브라우저에서 접수된 신고를 우선순위와 수색 정보로 정리합니다.</p></div><button class="admin-back" id="adminBack" type="button">신고자 화면으로</button></div>
+        <div class="admin-summary"><article><span>접수 신고</span><b id="adminReportCount">0</b><small>건</small></article><article><span>우선 확인</span><b id="adminPriorityCount">0</b><small>건</small></article><article><span>최근 접수</span><b id="adminLatestTime">-</b><small>기준</small></article></div>
+        <div class="admin-analysis-card"><div><span class="analysis-dot"></span><b>분석 기준</b><p>AI 후보 일치도 70% 이상은 우선 확인 대상으로 표시합니다. 수색 정보는 신고 시 선택한 좌표와 조류예보 지점을 바탕으로 합니다.</p></div><button id="clearReports" type="button">제출용 신고 기록 비우기</button></div>
+        <div class="admin-report-list" id="adminReportList" aria-live="polite"></div>
+      </section>
     </main>
     <footer><span class="brand-mark">⌁</span><p>바다지킴이 부산 · 해양 외래종 신고·수색 지원 시연 웹앱</p><p>모든 신고·AI 결과는 전문가의 현장 판단을 대체하지 않습니다.</p></footer>
+    <section class="receipt-modal" id="receiptModal" hidden role="dialog" aria-modal="true" aria-labelledby="receiptTitle"><div class="receipt-card"><span class="receipt-check">✓</span><p class="eyebrow">REPORT RECEIVED</p><h2 id="receiptTitle">신고가 접수되었습니다.</h2><p id="receiptDescription">관리자 분석 화면에서 확인할 수 있습니다.</p><div class="receipt-actions"><button id="receiptHome" type="button">홈으로 돌아가기</button><button id="receiptAdmin" type="button">관리자 분석 보기</button></div></div></section>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="app.js?v=20260807-range"></script>

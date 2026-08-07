@@ -20,6 +20,23 @@ const resultLabel = document.querySelector('#resultLabel');
 const forecastStation = document.querySelector('#forecastStation');
 const forecastDisclaimer = document.querySelector('#forecastDisclaimer');
 const foundAtInput = document.querySelector('#foundAt');
+const rolePortal = document.querySelector('#rolePortal');
+const roleButtons = document.querySelectorAll('[data-role]');
+const homeButton = document.querySelector('#homeButton');
+const adminNav = document.querySelector('#adminNav');
+const adminDashboard = document.querySelector('#adminDashboard');
+const adminBack = document.querySelector('#adminBack');
+const adminReportList = document.querySelector('#adminReportList');
+const adminReportCount = document.querySelector('#adminReportCount');
+const adminPriorityCount = document.querySelector('#adminPriorityCount');
+const adminLatestTime = document.querySelector('#adminLatestTime');
+const clearReports = document.querySelector('#clearReports');
+const receiptModal = document.querySelector('#receiptModal');
+const receiptDescription = document.querySelector('#receiptDescription');
+const receiptHome = document.querySelector('#receiptHome');
+const receiptAdmin = document.querySelector('#receiptAdmin');
+const mainView = document.querySelector('main');
+const REPORT_STORAGE_KEY = 'badaJikimiBusanReportsV1';
 
 function showToast(message) {
   toast.textContent = message;
@@ -35,6 +52,91 @@ function showAiResult() {
 function localDateTimeValue(date) {
   const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return offsetDate.toISOString().slice(0, 16);
+}
+
+function getStoredReports() {
+  try {
+    const reports = JSON.parse(localStorage.getItem(REPORT_STORAGE_KEY) || '[]');
+    return Array.isArray(reports) ? reports : [];
+  } catch {
+    return [];
+  }
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
+}
+
+function formatReportTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return new Intl.DateTimeFormat('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
+}
+
+function renderAdminDashboard() {
+  const reports = getStoredReports();
+  const priorityReports = reports.filter((report) => Number(report.confidence) >= 70);
+  adminReportCount.textContent = reports.length;
+  adminPriorityCount.textContent = priorityReports.length;
+  adminLatestTime.textContent = reports[0] ? formatReportTime(reports[0].createdAt) : '-';
+  if (!reports.length) {
+    adminReportList.innerHTML = '<div class="admin-empty"><b>아직 접수된 신고가 없습니다.</b><span>신고자 화면에서 사진 분석 후 신고를 접수하면 이곳에 표시됩니다.</span></div>';
+    return;
+  }
+  adminReportList.innerHTML = reports.map((report) => {
+    const priority = Number(report.confidence) >= 70;
+    const coordinates = Number.isFinite(Number(report.latitude)) ? `${Number(report.latitude).toFixed(5)}, ${Number(report.longitude).toFixed(5)}` : '좌표 미선택';
+    return `<article class="admin-report"><div class="admin-report-id"><span>${escapeHtml(report.id)}</span><b>${formatReportTime(report.createdAt)}</b></div><div class="admin-report-main"><h3>${escapeHtml(report.species)} <small>AI 후보 ${Number(report.confidence || 0)}%</small></h3><p><b>발견 장소</b> ${escapeHtml(report.location)}</p><p><b>수색 기준</b> ${escapeHtml(report.station || '조류 정보 계산 전')}</p><div class="admin-report-meta"><span>좌표 ${coordinates}</span><span>발견 ${escapeHtml(report.foundAt || '-')}</span><span>${escapeHtml(report.current || '조류 정보 없음')}</span></div></div><span class="${priority ? 'priority-tag' : 'review-tag'}">${priority ? '우선 확인' : '전문가 검토'}</span></article>`;
+  }).join('');
+}
+
+function saveReport(result) {
+  const first = Array.isArray(result.candidates) ? result.candidates[0] || {} : {};
+  const reports = getStoredReports();
+  const report = {
+    id: `BM-${Date.now().toString().slice(-6)}`,
+    createdAt: new Date().toISOString(),
+    species: first.name_ko || primarySpecies.textContent.trim() || '판별 불가',
+    confidence: Number(first.confidence) || 0,
+    location: locationState?.label || locationInput.value.trim() || '장소 미입력',
+    latitude: locationState?.latitude,
+    longitude: locationState?.longitude,
+    foundAt: foundAtInput.value,
+    station: forecastStation.textContent.trim(),
+    current: document.querySelector('#currentValue').textContent.trim(),
+  };
+  localStorage.setItem(REPORT_STORAGE_KEY, JSON.stringify([report, ...reports].slice(0, 30)));
+  return report;
+}
+
+function openPortal() {
+  rolePortal.hidden = false;
+  document.body.classList.add('portal-open');
+}
+
+function openReporter(target = '#report') {
+  rolePortal.hidden = true;
+  receiptModal.hidden = true;
+  adminDashboard.hidden = true;
+  mainView.dataset.view = 'reporter';
+  document.body.classList.remove('portal-open');
+  if (target) window.location.hash = target;
+}
+
+function openManager() {
+  rolePortal.hidden = true;
+  receiptModal.hidden = true;
+  adminDashboard.hidden = false;
+  mainView.dataset.view = 'admin';
+  document.body.classList.remove('portal-open');
+  renderAdminDashboard();
+  window.location.hash = '#admin';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showReceipt(report) {
+  receiptDescription.textContent = `${report.id} · ${report.species} 신고가 접수되었습니다. 관리자 분석 화면에서 우선순위를 확인할 수 있습니다.`;
+  receiptModal.hidden = false;
 }
 
 foundAtInput.value = localDateTimeValue(new Date());
@@ -108,8 +210,10 @@ reportForm.addEventListener('submit', async (event) => {
   try {
     const result = await requestSpeciesIdentification(file);
     renderAiResult(result, 'Gemini');
-    if (locationState) refreshSearchForecast(true);
-    showToast('AI 후보를 받았습니다. 신고 전 전문가 검토가 필요합니다.');
+    if (locationState) await refreshSearchForecast(true);
+    const report = saveReport(result);
+    showReceipt(report);
+    showToast('신고가 접수되었습니다.');
   } catch (error) {
     renderAiResult({
       candidates: [
@@ -121,7 +225,7 @@ reportForm.addEventListener('submit', async (event) => {
     showToast(`AI 판별 오류: ${error.message}`);
   } finally {
     submitButton.disabled = false;
-    submitButton.innerHTML = 'AI로 종 후보 확인하기 <span>→</span>';
+    submitButton.innerHTML = 'AI 분석 후 신고 접수하기 <span>→</span>';
   }
   document.querySelector('#aiCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
@@ -365,6 +469,45 @@ locationSearch.addEventListener('click', async () => {
 });
 
 initializeMaps();
+
+roleButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    if (button.dataset.role === 'manager') openManager();
+    else openReporter('#report');
+  });
+});
+
+homeButton.addEventListener('click', (event) => {
+  event.preventDefault();
+  openPortal();
+});
+
+adminNav.addEventListener('click', (event) => {
+  event.preventDefault();
+  openManager();
+});
+
+document.querySelectorAll('nav a[href="#report"], nav a[href="#map"], nav a[href="#guide"]').forEach((link) => {
+  link.addEventListener('click', () => {
+    rolePortal.hidden = true;
+    adminDashboard.hidden = true;
+    mainView.dataset.view = 'reporter';
+    document.body.classList.remove('portal-open');
+  });
+});
+
+adminBack.addEventListener('click', () => openReporter('#report'));
+receiptHome.addEventListener('click', openPortal);
+receiptAdmin.addEventListener('click', openManager);
+clearReports.addEventListener('click', () => {
+  if (!window.confirm('이 브라우저에 저장된 제출용 신고 기록을 모두 비울까요?')) return;
+  localStorage.removeItem(REPORT_STORAGE_KEY);
+  renderAdminDashboard();
+  showToast('제출용 신고 기록을 비웠습니다.');
+});
+
+mainView.dataset.view = 'reporter';
+document.body.classList.add('portal-open');
 
 uploadZone.addEventListener('dragover', (event) => { event.preventDefault(); uploadZone.style.borderColor = '#168c83'; });
 uploadZone.addEventListener('dragleave', () => { uploadZone.style.borderColor = ''; });
