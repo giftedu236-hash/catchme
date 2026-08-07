@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -107,7 +108,7 @@
         <div class="report-layout">
           <form class="report-form" id="reportForm">
             <div class="form-step"><span>01</span><div><label for="photo">발견 사진 <small>최대 3MB</small></label><label class="upload-zone" for="photo" id="uploadZone"><span class="upload-icon">↑</span><strong>사진을 올리거나 촬영하세요</strong><small>전체 모습과 특징 부위가 함께 보이면 더 정확해요</small><img id="previewImage" alt="업로드한 사진 미리보기" hidden /></label><input id="photo" type="file" accept="image/*" /></div></div>
-            <div class="form-step"><span>02</span><div><label for="location">발견 장소</label><div class="location-row"><input id="location" type="text" placeholder="예: 기장군 대변항 방파제" required /><button type="button" id="locationButton">⌖ 현재 위치</button></div></div></div>
+            <div class="form-step"><span>02</span><div><label for="location">발견 장소</label><div class="location-row"><input id="location" type="text" placeholder="예: 기장군 대변항 방파제" required /><button type="button" id="locationSearch">주소 검색</button><button type="button" id="locationButton">⌖ 현재 위치</button></div><p class="location-status" id="locationStatus">지도를 클릭하거나 주소를 검색해 발견 지점을 표시하세요.</p><div id="discoveryMap" class="location-map" aria-label="발견 장소 선택 지도"></div></div></div>
             <div class="form-step"><span>03</span><div><label for="foundAt">발견 시각</label><input id="foundAt" type="datetime-local" required /><small class="field-hint">발견 시각부터 현재까지의 경과 시간을 이동거리 계산에 사용합니다.</small></div></div>
             <div class="form-step"><span>04</span><div><label for="details">추가 정보 <small>선택</small></label><textarea id="details" rows="3" placeholder="크기, 색, 개체 수처럼 눈에 띈 점을 적어 주세요."></textarea></div></div>
             <div class="consent"><input id="consent" type="checkbox" required /><label for="consent">사진과 신고 내용이 외래종 확인 및 대응 목적으로 사용됨에 동의합니다.</label></div>
@@ -132,7 +133,7 @@
         <div class="forecast-copy"><p class="eyebrow">CURRENT-AWARE SEARCH</p><h2>해류를 따라<br /><em>다음 수색 위치를</em> 찾습니다.</h2><p>신고 위치에서 가까운 조류예보 지점의 유향·유속과 종별 이동 특성을 함께 계산해 수색 우선 구역을 표시합니다.</p><div class="api-source"><span>DATA</span><p>국립해양조사원<br /><b>조류예보 최강창낙조 및 전류 API</b></p></div></div>
         <div class="forecast-card">
           <div class="forecast-header"><div><span>예상 이동 범위</span><b id="forecastStation">태종대 남측 예보지점 기준</b></div><button id="recalculate" type="button">공공 API 값 불러오기 ↻</button></div>
-          <div class="forecast-map"><div class="range range-one"></div><div class="range range-two"></div><div class="origin"><i></i><span>신고 지점</span></div><div class="search-point point-one">1</div><div class="search-point point-two">2</div><svg viewBox="0 0 450 245" aria-hidden="true"><path d="M53 179 C150 89 207 195 319 102" /><path d="M304 90 l24 12 -21 11" /></svg><span class="direction-label">북동 방향</span></div>
+          <div class="forecast-map real-map" id="searchMap" aria-label="발견 지점과 예상 수색 위치 지도"></div>
           <div class="forecast-stats"><div><span>사용 조류</span><b id="currentValue">북동 1.4 kt</b></div><div><span>경과 시간</span><b id="elapsedValue">6시간</b></div><div><span>예상 거리</span><b id="distanceValue">4.8 km</b></div></div>
           <p class="disclaimer" id="forecastDisclaimer">※ 유속·유향은 국립해양조사원 조류예보 API에서 받으며, 발견 시각부터 현재까지의 경과 시간과 종별 표류 계수를 적용합니다. 실제 이동 경로 및 현장 판단을 대체하지 않습니다.</p>
         </div>
@@ -142,6 +143,7 @@
     </main>
     <footer><span class="brand-mark">⌁</span><p>바다지킴이 부산 · 해양 외래종 신고·수색 지원 시연 웹앱</p><p>모든 신고·AI 결과는 전문가의 현장 판단을 대체하지 않습니다.</p></footer>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
