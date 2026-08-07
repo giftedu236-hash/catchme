@@ -267,7 +267,11 @@ function drawSearchMap(location, station, calculation) {
   window.L.marker([station.latitude, station.longitude], { icon: markerIcon('조', 'station') }).addTo(searchLayers)
     .bindPopup(`<b>사용 조류예보 지점</b><br />${station.name} · ${station.distanceKm.toFixed(1)} km`);
   window.L.polyline([originLatLng, destinationLatLng], { color: '#0a7187', weight: 4, dashArray: '8 8' }).addTo(searchLayers);
-  window.L.circle(originLatLng, { radius: Math.max(120, calculation.distanceKm * 180), color: '#f47754', fillColor: '#f47754', fillOpacity: 0.12 }).addTo(searchLayers);
+  const originRangeRadius = Math.max(900, calculation.distanceKm * 760);
+  const destinationRangeRadius = Math.max(650, calculation.distanceKm * 520);
+  window.L.circle(originLatLng, { radius: originRangeRadius, color: '#ef735f', weight: 1, fillColor: '#f48b78', fillOpacity: 0.2 }).addTo(searchLayers)
+    .bindPopup(`<b>예상 이동 범위</b><br />출발 지점 주변 약 ${(originRangeRadius / 1000).toFixed(1)} km`);
+  window.L.circle(destinationLatLng, { radius: destinationRangeRadius, color: '#ef735f', weight: 1, fillColor: '#f48b78', fillOpacity: 0.15 }).addTo(searchLayers);
   window.L.marker([firstSearchPoint.latitude, firstSearchPoint.longitude], { icon: markerIcon('1', 'search') }).addTo(searchLayers)
     .bindPopup('<b>1차 수색 우선 지점</b><br />발견 지점과 예상 도착 지점 사이 구간');
   window.L.marker(destinationLatLng, { icon: markerIcon('2', 'search') }).addTo(searchLayers)
@@ -303,11 +307,15 @@ async function refreshSearchForecast(silent = false) {
     const calculation = calculateSearchDistance(liveData.current);
     calculation.directionDeg = Number(liveData.current.directionDeg);
     const actualStation = { ...station, name: liveData.current.stationName || station.name, latitude: liveData.current.latitude || station.latitude, longitude: liveData.current.longitude || station.longitude };
-    document.querySelector('#currentValue').textContent = `${calculation.direction} ${Number(liveData.current.speedCms).toFixed(1)} cm/s`;
+    const speedCms = Number(liveData.current.speedCms);
+    const isSlackWater = speedCms < 0.05;
+    document.querySelector('#currentValue').textContent = isSlackWater
+      ? `정조 ${speedCms.toFixed(1)} cm/s`
+      : `${calculation.direction} ${speedCms.toFixed(1)} cm/s`;
     document.querySelector('#elapsedValue').textContent = `${calculation.elapsedHours.toFixed(1)}시간`;
     document.querySelector('#distanceValue').textContent = `${calculation.distanceKm.toFixed(1)} km`;
     forecastStation.textContent = `${actualStation.name} (${station.distanceKm.toFixed(1)} km) · ${liveData.current.predictedAt} 기준`;
-    forecastDisclaimer.textContent = `※ 발견 좌표에서 가장 가까운 공공 조류예보 지점(${actualStation.name}, ${station.distanceKm.toFixed(1)} km)의 유향·유속을 적용했습니다. ${calculation.profile.label}(${Math.round(calculation.profile.driftRatio * 100)}% 표류)와 ${calculation.elapsedHours.toFixed(1)}시간 경과를 반영한 수색 우선 위치이며, 실제 이동 경로를 확정하지 않습니다.`;
+    forecastDisclaimer.textContent = `※ 발견 좌표에서 가장 가까운 공공 조류예보 지점(${actualStation.name}, ${station.distanceKm.toFixed(1)} km)의 유향·유속을 적용했습니다.${isSlackWater ? ' 현재 응답은 정조(유속 0 cm/s)이므로 넓은 불확실성 범위만 표시합니다.' : ''} ${calculation.profile.label}(${Math.round(calculation.profile.driftRatio * 100)}% 표류)와 ${calculation.elapsedHours.toFixed(1)}시간 경과를 반영한 수색 우선 위치이며, 실제 이동 경로를 확정하지 않습니다.`;
     drawSearchMap(locationState, actualStation, calculation);
     if (!silent) showToast('발견 좌표와 가장 가까운 조류예보 지점으로 수색 위치를 계산했습니다.');
   } catch (error) {
