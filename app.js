@@ -20,6 +20,7 @@ const resultLabel = document.querySelector('#resultLabel');
 const forecastStation = document.querySelector('#forecastStation');
 const forecastDisclaimer = document.querySelector('#forecastDisclaimer');
 const forecastSection = document.querySelector('#forecast');
+const elapsedValue = document.querySelector('#elapsedValue');
 const foundAtInput = document.querySelector('#foundAt');
 const rolePortal = document.querySelector('#rolePortal');
 const roleButtons = document.querySelectorAll('[data-role]');
@@ -38,6 +39,8 @@ const receiptHome = document.querySelector('#receiptHome');
 const receiptAdmin = document.querySelector('#receiptAdmin');
 const mainView = document.querySelector('main');
 const REPORT_STORAGE_KEY = 'badaJikimiBusanReportsV1';
+let reportElapsedTimer;
+let activeReportCreatedAt;
 
 function showToast(message) {
   toast.textContent = message;
@@ -74,6 +77,27 @@ function formatReportTime(value) {
   return new Intl.DateTimeFormat('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
 }
 
+function updateReportElapsedClock() {
+  if (!activeReportCreatedAt) {
+    elapsedValue.textContent = '신고 전';
+    return;
+  }
+  const submittedAt = new Date(activeReportCreatedAt).getTime();
+  const totalSeconds = Number.isFinite(submittedAt)
+    ? Math.max(0, Math.floor((Date.now() - submittedAt) / 1000))
+    : 0;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  elapsedValue.textContent = `${minutes}분 ${String(seconds).padStart(2, '0')}초`;
+}
+
+function startReportElapsedClock(createdAt) {
+  activeReportCreatedAt = createdAt || null;
+  window.clearInterval(reportElapsedTimer);
+  updateReportElapsedClock();
+  if (activeReportCreatedAt) reportElapsedTimer = window.setInterval(updateReportElapsedClock, 1000);
+}
+
 function hideStaleForecast(message) {
   if (searchLayers) searchLayers.clearLayers();
   forecastSection.hidden = true;
@@ -82,6 +106,7 @@ function hideStaleForecast(message) {
 
 function renderAdminDashboard() {
   const reports = getStoredReports();
+  startReportElapsedClock(reports[0]?.createdAt);
   const priorityReports = reports.filter((report) => Number(report.confidence) >= 70);
   adminReportCount.textContent = reports.length;
   adminPriorityCount.textContent = priorityReports.length;
@@ -113,6 +138,7 @@ function saveReport(result) {
     current: document.querySelector('#currentValue').textContent.trim(),
   };
   localStorage.setItem(REPORT_STORAGE_KEY, JSON.stringify([report, ...reports].slice(0, 30)));
+  startReportElapsedClock(report.createdAt);
   return report;
 }
 
@@ -442,7 +468,7 @@ async function refreshSearchForecast(silent = false) {
     document.querySelector('#currentValue').textContent = isSlackWater
       ? `정조 ${speedCms.toFixed(1)} cm/s`
       : `${calculation.direction} ${speedCms.toFixed(1)} cm/s`;
-    document.querySelector('#elapsedValue').textContent = `${calculation.elapsedHours.toFixed(1)}시간`;
+    updateReportElapsedClock();
     document.querySelector('#distanceValue').textContent = `${calculation.distanceKm.toFixed(1)} km`;
     forecastStation.textContent = `${actualStation.name} (${station.distanceKm.toFixed(1)} km)`;
     forecastDisclaimer.textContent = `※ 발견 좌표에서 가장 가까운 공공 조류예보 지점(${actualStation.name}, ${station.distanceKm.toFixed(1)} km)의 유향·유속을 적용했습니다.${isSlackWater ? ' 현재 응답은 정조(유속 0 cm/s)이므로 넓은 불확실성 범위만 표시합니다.' : ''} ${calculation.profile.label}(${Math.round(calculation.profile.driftRatio * 100)}% 표류)와 ${calculation.elapsedHours.toFixed(1)}시간 경과를 반영한 수색 우선 위치이며, 실제 이동 경로를 확정하지 않습니다.`;
