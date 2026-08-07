@@ -19,6 +19,7 @@ const expertNote = document.querySelector('#expertNote');
 const resultLabel = document.querySelector('#resultLabel');
 const forecastStation = document.querySelector('#forecastStation');
 const forecastDisclaimer = document.querySelector('#forecastDisclaimer');
+const forecastSection = document.querySelector('#forecast');
 const foundAtInput = document.querySelector('#foundAt');
 const rolePortal = document.querySelector('#rolePortal');
 const roleButtons = document.querySelectorAll('[data-role]');
@@ -37,6 +38,7 @@ const receiptHome = document.querySelector('#receiptHome');
 const receiptAdmin = document.querySelector('#receiptAdmin');
 const mainView = document.querySelector('main');
 const REPORT_STORAGE_KEY = 'badaJikimiBusanReportsV1';
+const MAX_CURRENT_DATA_AGE_MS = 3 * 60 * 60 * 1000;
 
 function showToast(message) {
   toast.textContent = message;
@@ -71,6 +73,27 @@ function formatReportTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
   return new Intl.DateTimeFormat('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
+}
+
+function parseCurrentDataTime(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/.exec(String(value || '').trim());
+  if (!match) return null;
+  const [, year, month, day, hour, minute] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function hasFreshCurrentData(value) {
+  const dataTime = parseCurrentDataTime(value);
+  if (!dataTime) return false;
+  const ageMs = Date.now() - dataTime.getTime();
+  return ageMs >= -15 * 60 * 1000 && ageMs <= MAX_CURRENT_DATA_AGE_MS;
+}
+
+function hideStaleForecast(message) {
+  if (searchLayers) searchLayers.clearLayers();
+  forecastSection.hidden = true;
+  forecastDisclaimer.textContent = message;
 }
 
 function renderAdminDashboard() {
@@ -424,6 +447,12 @@ async function refreshSearchForecast(silent = false) {
   recalculate.textContent = '계산 중…';
   try {
     const liveData = await loadLiveCurrent(station.code);
+    if (!hasFreshCurrentData(liveData.current.predictedAt)) {
+      hideStaleForecast('현재 시각의 조류 API 값을 받지 못해 예상 수색 범위를 표시하지 않습니다.');
+      if (!silent) showToast('최신 조류 값이 아니어서 수색 범위를 표시하지 않습니다.');
+      return;
+    }
+    forecastSection.hidden = false;
     const calculation = calculateSearchDistance(liveData.current);
     calculation.directionDeg = Number(liveData.current.directionDeg);
     const actualStation = { ...station, name: liveData.current.stationName || station.name, latitude: liveData.current.latitude || station.latitude, longitude: liveData.current.longitude || station.longitude };
@@ -439,7 +468,7 @@ async function refreshSearchForecast(silent = false) {
     drawSearchMap(locationState, actualStation, calculation);
     if (!silent) showToast('발견 좌표와 가장 가까운 조류예보 지점으로 수색 위치를 계산했습니다.');
   } catch (error) {
-    forecastDisclaimer.textContent = '※ 조류예보 API 값을 불러오지 못했습니다. 잠시 후 다시 계산해 주세요.';
+    hideStaleForecast('현재 시각의 조류 API 값을 불러오지 못해 예상 수색 범위를 표시하지 않습니다.');
     if (!silent) showToast('조류예보 API 값을 불러오지 못했습니다.');
   } finally {
     recalculate.disabled = false;
@@ -522,6 +551,7 @@ clearReports.addEventListener('click', () => {
 
 mainView.dataset.view = 'reporter';
 document.body.classList.add('portal-open');
+forecastSection.hidden = true;
 
 uploadZone.addEventListener('dragover', (event) => { event.preventDefault(); uploadZone.style.borderColor = '#168c83'; });
 uploadZone.addEventListener('dragleave', () => { uploadZone.style.borderColor = ''; });
