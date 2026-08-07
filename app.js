@@ -267,8 +267,8 @@ function drawSearchMap(location, station, calculation) {
   window.L.marker([station.latitude, station.longitude], { icon: markerIcon('조', 'station') }).addTo(searchLayers)
     .bindPopup(`<b>사용 조류예보 지점</b><br />${station.name} · ${station.distanceKm.toFixed(1)} km`);
   window.L.polyline([originLatLng, destinationLatLng], { color: '#0a7187', weight: 4, dashArray: '8 8' }).addTo(searchLayers);
-  const originRangeRadius = Math.max(900, calculation.distanceKm * 760);
-  const destinationRangeRadius = Math.max(650, calculation.distanceKm * 520);
+  const originRangeRadius = Math.max(3000, calculation.distanceKm * 900);
+  const destinationRangeRadius = Math.max(2100, calculation.distanceKm * 650);
   window.L.circle(originLatLng, { radius: originRangeRadius, color: '#ef735f', weight: 1, fillColor: '#f48b78', fillOpacity: 0.2 }).addTo(searchLayers)
     .bindPopup(`<b>예상 이동 범위</b><br />출발 지점 주변 약 ${(originRangeRadius / 1000).toFixed(1)} km`);
   window.L.circle(destinationLatLng, { radius: destinationRangeRadius, color: '#ef735f', weight: 1, fillColor: '#f48b78', fillOpacity: 0.15 }).addTo(searchLayers);
