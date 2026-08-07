@@ -38,7 +38,6 @@ const receiptHome = document.querySelector('#receiptHome');
 const receiptAdmin = document.querySelector('#receiptAdmin');
 const mainView = document.querySelector('main');
 const REPORT_STORAGE_KEY = 'badaJikimiBusanReportsV1';
-const MAX_CURRENT_DATA_AGE_MS = 3 * 60 * 60 * 1000;
 
 function showToast(message) {
   toast.textContent = message;
@@ -73,21 +72,6 @@ function formatReportTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
   return new Intl.DateTimeFormat('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
-}
-
-function parseCurrentDataTime(value) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/.exec(String(value || '').trim());
-  if (!match) return null;
-  const [, year, month, day, hour, minute] = match;
-  const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function hasFreshCurrentData(value) {
-  const dataTime = parseCurrentDataTime(value);
-  if (!dataTime) return false;
-  const ageMs = Date.now() - dataTime.getTime();
-  return ageMs >= -15 * 60 * 1000 && ageMs <= MAX_CURRENT_DATA_AGE_MS;
 }
 
 function hideStaleForecast(message) {
@@ -447,11 +431,6 @@ async function refreshSearchForecast(silent = false) {
   recalculate.textContent = '계산 중…';
   try {
     const liveData = await loadLiveCurrent(station.code);
-    if (!hasFreshCurrentData(liveData.current.predictedAt)) {
-      hideStaleForecast('현재 시각의 조류 API 값을 받지 못해 예상 수색 범위를 표시하지 않습니다.');
-      if (!silent) showToast('최신 조류 값이 아니어서 수색 범위를 표시하지 않습니다.');
-      return;
-    }
     forecastSection.hidden = false;
     const calculation = calculateSearchDistance(liveData.current);
     calculation.directionDeg = Number(liveData.current.directionDeg);
@@ -463,7 +442,7 @@ async function refreshSearchForecast(silent = false) {
       : `${calculation.direction} ${speedCms.toFixed(1)} cm/s`;
     document.querySelector('#elapsedValue').textContent = `${calculation.elapsedHours.toFixed(1)}시간`;
     document.querySelector('#distanceValue').textContent = `${calculation.distanceKm.toFixed(1)} km`;
-    forecastStation.textContent = `${actualStation.name} (${station.distanceKm.toFixed(1)} km) · ${liveData.current.predictedAt} 기준`;
+    forecastStation.textContent = `${actualStation.name} (${station.distanceKm.toFixed(1)} km)`;
     forecastDisclaimer.textContent = `※ 발견 좌표에서 가장 가까운 공공 조류예보 지점(${actualStation.name}, ${station.distanceKm.toFixed(1)} km)의 유향·유속을 적용했습니다.${isSlackWater ? ' 현재 응답은 정조(유속 0 cm/s)이므로 넓은 불확실성 범위만 표시합니다.' : ''} ${calculation.profile.label}(${Math.round(calculation.profile.driftRatio * 100)}% 표류)와 ${calculation.elapsedHours.toFixed(1)}시간 경과를 반영한 수색 우선 위치이며, 실제 이동 경로를 확정하지 않습니다.`;
     drawSearchMap(locationState, actualStation, calculation);
     if (!silent) showToast('발견 좌표와 가장 가까운 조류예보 지점으로 수색 위치를 계산했습니다.');
