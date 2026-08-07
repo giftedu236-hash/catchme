@@ -35,7 +35,7 @@ export default async function handler(request, response) {
   if (!image) return response.status(400).json({ error: 'JPG, PNG, WebP 사진을 보내 주세요.' });
   if (image.tooLarge) return response.status(413).json({ error: '사진은 3MB 이하로 올려 주세요.' });
 
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`;
   try {
     const geminiResponse = await fetch(endpoint, {
@@ -43,7 +43,7 @@ export default async function handler(request, response) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: JSON_INSTRUCTIONS }, { inlineData: { mimeType: image.mimeType, data: image.data } }] }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
+        generationConfig: { responseMimeType: 'application/json' },
       }),
     });
     if (!geminiResponse.ok) {
