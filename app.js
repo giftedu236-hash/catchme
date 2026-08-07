@@ -302,9 +302,7 @@ let searchMap;
 let discoveryMarker;
 let searchLayers;
 let locationState;
-let searchAreaVisualMarker;
-let searchAreaVisualCenter;
-let searchAreaVisualRadiusKm;
+let searchAreaVisuals = [];
 
 const speciesProfiles = {
   '붉은불가사리': { driftRatio: 0.8, selfMoveKmh: 0.03, label: '저서성 불가사리 잠정 계수' },
@@ -405,41 +403,43 @@ function calculateSearchDistance(current) {
   };
 }
 
-function searchAreaIcon(radiusKm, diameter) {
+function searchAreaIcon(radiusKm, diameter, phase) {
+  const phaseLabel = phase === 'first' ? '1차 수색범위' : phase === 'second' ? '2차 수색범위' : '임시 수색범위';
   const label = diameter >= 90
-    ? `<span>예상 수색범위<br><b>반경 ${radiusKm.toFixed(1)} km</b></span>`
+    ? `<span>${phaseLabel}<br><b>반경 ${radiusKm.toFixed(1)} km</b></span>`
     : '';
   return window.L.divIcon({
     className: 'search-area-icon',
-    html: `<div class="search-area-visual">${label}</div>`,
+    html: `<div class="search-area-visual ${phase}">${label}</div>`,
     iconSize: [diameter, diameter],
     iconAnchor: [diameter / 2, diameter / 2],
   });
 }
 
 function updateSearchAreaVisualSize() {
-  if (!searchMap || !searchAreaVisualMarker || !searchAreaVisualCenter || !searchAreaVisualRadiusKm) return;
-  if (!searchMap.hasLayer(searchAreaVisualMarker)) return;
-  const centerPoint = searchMap.latLngToLayerPoint(searchAreaVisualCenter);
-  const edge = destinationPoint(
-    { latitude: searchAreaVisualCenter[0], longitude: searchAreaVisualCenter[1] },
-    90,
-    searchAreaVisualRadiusKm,
-  );
-  const edgePoint = searchMap.latLngToLayerPoint([edge.latitude, edge.longitude]);
-  const pixelRadius = Math.hypot(edgePoint.x - centerPoint.x, edgePoint.y - centerPoint.y);
-  const diameter = Math.max(24, Math.min(600, pixelRadius * 2));
-  searchAreaVisualMarker.setIcon(searchAreaIcon(searchAreaVisualRadiusKm, diameter));
+  if (!searchMap) return;
+  searchAreaVisuals.forEach((visual) => {
+    if (!searchMap.hasLayer(visual.marker)) return;
+    const centerPoint = searchMap.latLngToLayerPoint(visual.center);
+    const edge = destinationPoint(
+      { latitude: visual.center[0], longitude: visual.center[1] },
+      90,
+      visual.radiusKm,
+    );
+    const edgePoint = searchMap.latLngToLayerPoint([edge.latitude, edge.longitude]);
+    const pixelRadius = Math.hypot(edgePoint.x - centerPoint.x, edgePoint.y - centerPoint.y);
+    const diameter = Math.max(24, Math.min(600, pixelRadius * 2));
+    visual.marker.setIcon(searchAreaIcon(visual.radiusKm, diameter, visual.phase));
+  });
 }
 
-function addSearchAreaVisual(center, radiusKm) {
-  searchAreaVisualCenter = center;
-  searchAreaVisualRadiusKm = radiusKm;
-  searchAreaVisualMarker = window.L.marker(center, {
-    icon: searchAreaIcon(radiusKm, 150),
+function addSearchAreaVisual(center, radiusKm, phase) {
+  const marker = window.L.marker(center, {
+    icon: searchAreaIcon(radiusKm, 150, phase),
     interactive: false,
     zIndexOffset: -500,
   }).addTo(searchLayers);
+  searchAreaVisuals.push({ marker, center, radiusKm, phase });
   updateSearchAreaVisualSize();
 }
 
@@ -452,27 +452,47 @@ async function loadLiveCurrent(stationCode) {
 function drawSearchMap(location, station, calculation) {
   if (!searchMap || !searchLayers) return;
   searchLayers.clearLayers();
-  searchAreaVisualMarker = null;
+  searchAreaVisuals = [];
+  const firstSearchPoint = destinationPoint(location, calculation.directionDeg, calculation.searchCenterDistanceKm * 0.5);
   const destination = destinationPoint(location, calculation.directionDeg, calculation.searchCenterDistanceKm);
   const originLatLng = [location.latitude, location.longitude];
+  const firstSearchLatLng = [firstSearchPoint.latitude, firstSearchPoint.longitude];
   const destinationLatLng = [destination.latitude, destination.longitude];
   window.L.marker(originLatLng, { icon: markerIcon('발') }).addTo(searchLayers).bindPopup('<b>발견 지점</b>');
   window.L.marker([station.latitude, station.longitude], { icon: markerIcon('조', 'station') }).addTo(searchLayers)
     .bindPopup(`<b>사용 조류예보 지점</b><br />${station.name} · ${station.distanceKm.toFixed(1)} km`);
   window.L.polyline([originLatLng, destinationLatLng], { color: '#0a7187', weight: 4, dashArray: '8 8' }).addTo(searchLayers);
   const destinationRangeRadius = Math.max(3000, calculation.distanceKm * 750);
-  const searchRangeCircle = window.L.circle(destinationLatLng, {
+  const firstRangeRadius = Math.max(1800, destinationRangeRadius * 0.6);
+  const firstRangeCircle = window.L.circle(firstSearchLatLng, {
+    radius: firstRangeRadius,
+    color: '#ef735f',
+    weight: 2,
+    dashArray: '7 6',
+    fillColor: '#f7a091',
+    fillOpacity: 0.18,
+  }).addTo(searchLayers)
+    .bindPopup(`<b>1차 수색 범위</b><br />중심에서 약 ${(firstRangeRadius / 1000).toFixed(1)} km 범위`);
+  const secondRangeCircle = window.L.circle(destinationLatLng, {
     radius: destinationRangeRadius,
     color: '#e75847',
     weight: 2,
     fillColor: '#f28a7c',
     fillOpacity: 0.32,
   }).addTo(searchLayers)
-    .bindPopup(`<b>예상 수색 위치</b><br />중심에서 약 ${(destinationRangeRadius / 1000).toFixed(1)} km 범위`);
-  searchRangeCircle.bringToFront();
-  addSearchAreaVisual(destinationLatLng, destinationRangeRadius / 1000);
+    .bindPopup(`<b>2차 수색 범위</b><br />중심에서 약 ${(destinationRangeRadius / 1000).toFixed(1)} km 범위`);
+  firstRangeCircle.bringToFront();
+  secondRangeCircle.bringToFront();
+  addSearchAreaVisual(firstSearchLatLng, firstRangeRadius / 1000, 'first');
+  addSearchAreaVisual(destinationLatLng, destinationRangeRadius / 1000, 'second');
+  window.L.marker(firstSearchLatLng, { icon: markerIcon('1', 'search') }).addTo(searchLayers)
+    .bindPopup('<b>1차 수색 우선 지점</b><br />발견 지점에서 조류 방향으로 이동한 중간 구간');
+  window.L.marker(destinationLatLng, { icon: markerIcon('2', 'search') }).addTo(searchLayers)
+    .bindPopup(`<b>2차 수색 우선 지점</b><br />조류 방향 표시 중심 ${calculation.searchCenterDistanceKm.toFixed(1)} km`)
+    .openPopup();
   const mapBounds = window.L.latLngBounds([originLatLng, [station.latitude, station.longitude]]);
-  mapBounds.extend(searchRangeCircle.getBounds());
+  mapBounds.extend(firstRangeCircle.getBounds());
+  mapBounds.extend(secondRangeCircle.getBounds());
   searchMap.fitBounds(mapBounds, { padding: [35, 35], maxZoom: 14 });
 }
 
@@ -481,7 +501,7 @@ function drawFallbackSearchMap(location) {
   const originLatLng = [location.latitude, location.longitude];
   const fallbackRadius = 3000;
   searchLayers.clearLayers();
-  searchAreaVisualMarker = null;
+  searchAreaVisuals = [];
   window.L.marker(originLatLng, { icon: markerIcon('발') }).addTo(searchLayers)
     .bindPopup('<b>발견 지점</b>');
   const fallbackCircle = window.L.circle(originLatLng, {
@@ -493,7 +513,7 @@ function drawFallbackSearchMap(location) {
   }).addTo(searchLayers)
     .bindPopup('<b>예상 수색 위치</b><br />발견 지점 주변 약 3.0 km 범위');
   fallbackCircle.bringToFront();
-  addSearchAreaVisual(originLatLng, fallbackRadius / 1000);
+  addSearchAreaVisual(originLatLng, fallbackRadius / 1000, 'temporary');
   searchMap.fitBounds(fallbackCircle.getBounds(), { padding: [35, 35], maxZoom: 14 });
   forecastSection.hidden = false;
   forecastStation.textContent = '발견 지점 주변 임시 수색 범위';

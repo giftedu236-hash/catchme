@@ -17,6 +17,15 @@
   text-align: center;
 }
 
+.search-area-visual.first {
+  border-style: dashed;
+  background: rgba(247, 145, 128, 0.2);
+}
+
+.search-area-visual.second {
+  background: rgba(239, 92, 73, 0.29);
+}
+
 .search-area-visual span {
   padding: 7px 10px;
   border-radius: 8px;
