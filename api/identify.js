@@ -25,7 +25,18 @@ function extractImage(payload) {
 
 function parseModelJson(text) {
   const withoutFence = text.trim().replace(/^```json\s*/i, '').replace(/\s*```$/, '');
-  return JSON.parse(withoutFence);
+  try {
+    return JSON.parse(withoutFence);
+  } catch {
+    const firstBrace = withoutFence.indexOf('{');
+    const lastBrace = withoutFence.lastIndexOf('}');
+    if (firstBrace < 0 || lastBrace <= firstBrace) throw new Error('Gemini 결과에서 판별 JSON을 찾지 못했습니다.');
+    return JSON.parse(withoutFence.slice(firstBrace, lastBrace + 1));
+  }
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function normalizeConfidence(value) {
@@ -58,14 +69,20 @@ export default async function handler(request, response) {
   const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`;
   try {
-    const geminiResponse = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: JSON_INSTRUCTIONS }, { inlineData: { mimeType: image.mimeType, data: image.data } }] }],
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
+    const requestBody = JSON.stringify({
+      contents: [{ parts: [{ text: JSON_INSTRUCTIONS }, { inlineData: { mimeType: image.mimeType, data: image.data } }] }],
+      generationConfig: { responseMimeType: 'application/json' },
     });
+    let geminiResponse;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      geminiResponse = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: requestBody,
+      });
+      if (geminiResponse.ok || ![429, 500, 502, 503, 504].includes(geminiResponse.status) || attempt === 1) break;
+      await wait(700);
+    }
     if (!geminiResponse.ok) {
       const providerError = await geminiResponse.json().catch(() => ({}));
       const providerMessage = String(providerError?.error?.message || 'Google Gemini가 요청을 거절했습니다.')
