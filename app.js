@@ -300,7 +300,6 @@ const MAP_CENTER = [35.1796, 129.0756];
 let discoveryMap;
 let searchMap;
 let discoveryMarker;
-let discoverySearchCircle;
 let searchLayers;
 let locationState;
 
@@ -426,19 +425,6 @@ function drawSearchMap(location, station, calculation) {
   }).addTo(searchLayers)
     .bindPopup(`<b>예상 수색 위치</b><br />중심에서 약 ${(destinationRangeRadius / 1000).toFixed(1)} km 범위`);
   searchRangeCircle.bringToFront();
-  if (discoveryMap) {
-    if (discoverySearchCircle) discoverySearchCircle.remove();
-    discoverySearchCircle = window.L.circle(destinationLatLng, {
-      radius: destinationRangeRadius,
-      color: '#e75847',
-      weight: 2,
-      fillColor: '#f28a7c',
-      fillOpacity: 0.32,
-    }).addTo(discoveryMap)
-      .bindPopup(`<b>예상 수색 위치</b><br />중심에서 약 ${(destinationRangeRadius / 1000).toFixed(1)} km 범위`);
-    discoverySearchCircle.bringToFront();
-    discoveryMap.fitBounds(discoverySearchCircle.getBounds(), { padding: [28, 28], maxZoom: 14 });
-  }
   const mapBounds = window.L.latLngBounds([originLatLng, [station.latitude, station.longitude]]);
   mapBounds.extend(searchRangeCircle.getBounds());
   searchMap.fitBounds(mapBounds, { padding: [35, 35], maxZoom: 14 });
