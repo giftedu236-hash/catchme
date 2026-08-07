@@ -571,13 +571,18 @@ async function refreshSearchForecast(silent = false) {
       : `${calculation.direction} ${speedCms.toFixed(1)} cm/s`;
     updateReportElapsedClock();
     document.querySelector('#distanceValue').textContent = `${calculation.distanceKm.toFixed(1)} km`;
-    forecastStation.textContent = `${actualStation.name} (${station.distanceKm.toFixed(1)} km)`;
+    forecastStation.textContent = `${actualStation.name} (${station.distanceKm.toFixed(1)} km)${liveData.fallback ? ' · 대체값' : ''}`;
     const minimumOffsetNote = calculation.distanceKm < 0.8
       ? ' 수색 영역은 발견 지점과 겹치지 않도록 조류 방향으로 0.8 km 이동해 표시한 시연용 최소 간격입니다.'
       : '';
-    forecastDisclaimer.textContent = `※ 발견 좌표에서 가장 가까운 공공 조류예보 지점(${actualStation.name}, ${station.distanceKm.toFixed(1)} km)의 유향·유속을 적용했습니다.${isSlackWater ? ' 현재 응답은 정조(유속 0 cm/s)이므로 넓은 불확실성 범위만 표시합니다.' : ''} ${calculation.profile.label}(${Math.round(calculation.profile.driftRatio * 100)}% 표류)와 ${calculation.elapsedHours.toFixed(1)}시간 경과를 반영한 수색 우선 위치입니다.${minimumOffsetNote} 실제 이동 경로를 확정하지 않습니다.`;
+    const fallbackNote = liveData.fallback
+      ? ' 공공 API 연결 지연으로 마지막 정상 수신값을 대체 사용한 제출용 계산입니다.'
+      : '';
+    forecastDisclaimer.textContent = `※ 발견 좌표에서 가장 가까운 공공 조류예보 지점(${actualStation.name}, ${station.distanceKm.toFixed(1)} km)의 유향·유속을 적용했습니다.${fallbackNote}${isSlackWater ? ' 현재 응답은 정조(유속 0 cm/s)이므로 넓은 불확실성 범위만 표시합니다.' : ''} ${calculation.profile.label}(${Math.round(calculation.profile.driftRatio * 100)}% 표류)와 ${calculation.elapsedHours.toFixed(1)}시간 경과를 반영한 수색 우선 위치입니다.${minimumOffsetNote} 실제 이동 경로를 확정하지 않습니다.`;
     drawSearchMap(locationState, actualStation, calculation);
-    if (!silent) showToast('발견 좌표와 가장 가까운 조류예보 지점으로 수색 위치를 계산했습니다.');
+    if (!silent) showToast(liveData.fallback
+      ? '공공 API 연결이 지연되어 마지막 정상 수신값으로 계산했습니다.'
+      : '발견 좌표와 가장 가까운 조류예보 지점으로 수색 위치를 계산했습니다.');
   } catch (error) {
     drawFallbackSearchMap(locationState);
     forecastDisclaimer.textContent = '※ 조류 API 값을 불러오지 못해 발견 지점 주변 3 km를 임시 수색 범위로 표시합니다.';
