@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="styles.css?v=20260807-clean" />
+    <link rel="stylesheet" href="hero.css?v=20260807-hero" />
   </head>
   <body>
     <header class="topbar">
@@ -28,9 +29,9 @@
     <main id="home">
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">BUSAN MARINE WATCH · DEMO</p>
-          <h1>발견은 빠르게,<br /><em>대응은 더 정확하게.</em></h1>
-          <p class="hero-description">부산 바다에서 발견한 외래종을 사진 한 장으로 신고하세요. 해류와 종 특성을 바탕으로 다음 수색 구역을 함께 살펴봅니다.</p>
+          <p class="eyebrow">BUSAN MARINE WATCH</p>
+          <h1>발견을 기록하면,<br /><em>대응 위치가 보입니다.</em></h1>
+          <p class="hero-description">사진과 발견 좌표를 남기면, 가까운 조류예보 지점의 실제 값을 바탕으로 수색 우선 위치를 안내합니다.</p>
           <div class="hero-actions">
             <a class="primary-button" href="#report">외래종 신고 시작 <span>→</span></a>
             <a class="text-button" href="#map">지도에서 확인하기</a>
@@ -41,20 +42,12 @@
             <li>전문가 검토 연계</li>
           </ul>
         </div>
-        <div class="hero-visual" aria-label="해류를 따라 이동하는 바다 생물 일러스트">
-          <div class="sun"></div>
-          <div class="island island-one"></div>
-          <div class="island island-two"></div>
-          <svg viewBox="0 0 600 420" role="img" aria-label="바다와 해류">
-            <path class="wave wave-a" d="M-30 188 C70 125 127 240 227 179 S403 115 631 195" />
-            <path class="wave wave-b" d="M-31 267 C90 205 179 330 300 249 S474 201 632 285" />
-            <path class="wave wave-c" d="M-25 339 C83 285 161 395 280 319 S484 269 625 350" />
-            <path class="current" d="M95 244 C170 194 201 260 270 227 C347 191 376 232 443 201" />
-            <path class="current-arrow" d="M435 190 l20 10 -18 15" />
-          </svg>
-          <div class="fish fish-one">◈</div>
-          <div class="fish fish-two">✦</div>
-          <div class="current-chip">오늘의 조류&nbsp; <b>북동 1.4 kt</b></div>
+        <div class="hero-visual" aria-label="부산 연안 외래종 대응 흐름">
+          <div class="hero-visual-header"><span><i></i> COASTAL WATCH</span><b>BUSAN</b></div>
+          <div class="hero-watermark">35°N<br />129°E</div>
+          <div class="hero-route" aria-hidden="true"><span class="route-dot route-start"></span><span class="route-dot route-end"></span><svg viewBox="0 0 520 220"><path d="M36 167 C117 90 174 196 259 127 S385 71 482 96" /><path d="M465 79 L493 95 468 113" /></svg></div>
+          <div class="hero-data-card"><span>LOCATION-BASED SEARCH</span><b>발견 좌표에서 시작</b><p>가까운 조류예보 지점 선택<br />예상 수색 위치 표시</p></div>
+          <div class="hero-flow"><span>01 사진</span><i></i><span>02 좌표</span><i></i><span>03 수색</span></div>
         </div>
       </section>
 
