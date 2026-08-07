@@ -393,20 +393,19 @@ function drawSearchMap(location, station, calculation) {
   window.L.marker([station.latitude, station.longitude], { icon: markerIcon('조', 'station') }).addTo(searchLayers)
     .bindPopup(`<b>사용 조류예보 지점</b><br />${station.name} · ${station.distanceKm.toFixed(1)} km`);
   window.L.polyline([originLatLng, destinationLatLng], { color: '#0a7187', weight: 4, dashArray: '8 8' }).addTo(searchLayers);
-  const originRangeRadius = Math.max(3000, calculation.distanceKm * 900);
   const destinationRangeRadius = Math.max(3000, calculation.distanceKm * 750);
-  window.L.circle(originLatLng, { radius: originRangeRadius, color: '#ef735f', weight: 1, fillColor: '#f48b78', fillOpacity: 0.2 }).addTo(searchLayers)
-    .bindPopup(`<b>예상 이동 범위</b><br />출발 지점 주변 약 ${(originRangeRadius / 1000).toFixed(1)} km`);
-  window.L.circle(destinationLatLng, {
+  const searchRangeCircle = window.L.circle(destinationLatLng, {
     radius: destinationRangeRadius,
-    color: '#e45f4d',
+    color: '#e75847',
     weight: 2,
-    dashArray: '8 6',
-    fillColor: '#f48776',
-    fillOpacity: 0.22,
+    fillColor: '#f28a7c',
+    fillOpacity: 0.32,
   }).addTo(searchLayers)
     .bindPopup(`<b>예상 수색 위치</b><br />중심에서 약 ${(destinationRangeRadius / 1000).toFixed(1)} km 범위`);
-  searchMap.fitBounds(window.L.latLngBounds([originLatLng, destinationLatLng, [station.latitude, station.longitude]]), { padding: [35, 35], maxZoom: 14 });
+  searchRangeCircle.bringToFront();
+  const mapBounds = window.L.latLngBounds([originLatLng, [station.latitude, station.longitude]]);
+  mapBounds.extend(searchRangeCircle.getBounds());
+  searchMap.fitBounds(mapBounds, { padding: [35, 35], maxZoom: 14 });
 }
 
 function setDiscoveryLocation(location, label) {
