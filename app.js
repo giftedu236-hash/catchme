@@ -110,8 +110,22 @@ function saveReport(result) {
 }
 
 function openPortal() {
+  receiptModal.hidden = true;
+  adminDashboard.hidden = true;
+  mainView.dataset.view = 'portal';
   rolePortal.hidden = false;
   document.body.classList.add('portal-open');
+  window.location.hash = '#home';
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function refreshVisibleMaps({ discovery = false, search = false } = {}) {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      if (discovery && discoveryMap) discoveryMap.invalidateSize({ pan: false });
+      if (search && searchMap) searchMap.invalidateSize({ pan: false });
+    });
+  });
 }
 
 function openReporter(target = '#report') {
@@ -121,6 +135,7 @@ function openReporter(target = '#report') {
   mainView.dataset.view = 'reporter';
   document.body.classList.remove('portal-open');
   if (target) window.location.hash = target;
+  refreshVisibleMaps({ discovery: true });
 }
 
 function openManager() {
@@ -132,6 +147,7 @@ function openManager() {
   renderAdminDashboard();
   window.location.hash = '#admin';
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  refreshVisibleMaps({ search: true });
 }
 
 function showReceipt(report) {
@@ -488,11 +504,9 @@ adminNav.addEventListener('click', (event) => {
 });
 
 document.querySelectorAll('nav a[href="#report"], nav a[href="#map"], nav a[href="#guide"]').forEach((link) => {
-  link.addEventListener('click', () => {
-    rolePortal.hidden = true;
-    adminDashboard.hidden = true;
-    mainView.dataset.view = 'reporter';
-    document.body.classList.remove('portal-open');
+  link.addEventListener('click', (event) => {
+    event.preventDefault();
+    openReporter(link.getAttribute('href'));
   });
 });
 
