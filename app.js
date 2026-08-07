@@ -32,11 +32,6 @@ const adminReportCount = document.querySelector('#adminReportCount');
 const adminPriorityCount = document.querySelector('#adminPriorityCount');
 const adminLatestTime = document.querySelector('#adminLatestTime');
 const clearReports = document.querySelector('#clearReports');
-const speciesMovementCard = document.querySelector('#speciesMovementCard');
-const speciesMovementDescription = document.querySelector('#speciesMovementDescription');
-const speciesMovementSpecies = document.querySelector('#speciesMovementSpecies');
-const speciesMovementElapsed = document.querySelector('#speciesMovementElapsed');
-const speciesMovementRadius = document.querySelector('#speciesMovementRadius');
 const receiptModal = document.querySelector('#receiptModal');
 const receiptDescription = document.querySelector('#receiptDescription');
 const receiptHome = document.querySelector('#receiptHome');
@@ -103,7 +98,6 @@ function hideStaleForecast(message) {
 
 function renderAdminDashboard() {
   const reports = getStoredReports();
-  renderSpeciesMovement(reports);
   const priorityReports = reports.filter((report) => Number(report.confidence) >= 70);
   adminReportCount.textContent = reports.length;
   adminPriorityCount.textContent = priorityReports.length;
@@ -148,12 +142,11 @@ function openPortal() {
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
-function refreshVisibleMaps({ discovery = false, search = false, species = false } = {}) {
+function refreshVisibleMaps({ discovery = false, search = false } = {}) {
   window.requestAnimationFrame(() => {
     window.requestAnimationFrame(() => {
       if (discovery && discoveryMap) discoveryMap.invalidateSize({ pan: false });
       if (search && searchMap) searchMap.invalidateSize({ pan: false });
-      if (species && speciesMovementMap) speciesMovementMap.invalidateSize({ pan: false });
     });
   });
 }
@@ -177,7 +170,7 @@ function openManager() {
   renderAdminDashboard();
   window.location.hash = '#admin';
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  refreshVisibleMaps({ search: true, species: true });
+  refreshVisibleMaps({ search: true });
 }
 
 function showReceipt(report) {
@@ -300,10 +293,8 @@ const BUSAN_STATIONS = [
 const MAP_CENTER = [35.1796, 129.0756];
 let discoveryMap;
 let searchMap;
-let speciesMovementMap;
 let discoveryMarker;
 let searchLayers;
-let speciesMovementLayers;
 let locationState;
 
 const speciesProfiles = {
@@ -374,12 +365,9 @@ function initializeMaps() {
   }
   discoveryMap = window.L.map('discoveryMap', { scrollWheelZoom: false }).setView(MAP_CENTER, 11);
   searchMap = window.L.map('searchMap', { scrollWheelZoom: false }).setView(MAP_CENTER, 10);
-  speciesMovementMap = window.L.map('speciesMovementMap', { scrollWheelZoom: false }).setView(MAP_CENTER, 10);
   addBaseMap(discoveryMap);
   addBaseMap(searchMap);
-  addBaseMap(speciesMovementMap);
   searchLayers = window.L.layerGroup().addTo(searchMap);
-  speciesMovementLayers = window.L.layerGroup().addTo(speciesMovementMap);
   BUSAN_STATIONS.forEach((station) => {
     window.L.marker([station.latitude, station.longitude], { icon: markerIcon('조', 'station') })
       .addTo(discoveryMap)
@@ -403,55 +391,6 @@ function calculateSearchDistance(current) {
     distanceKm: currentDistance + activeDistance,
     profile,
   };
-}
-
-function calculateSpeciesMovementRadius(report) {
-  const profile = speciesProfiles[report.species] || speciesProfiles.default;
-  const reportedAt = new Date(report.foundAt || report.createdAt);
-  const elapsedHours = Number.isNaN(reportedAt.getTime()) ? 0 : Math.max(0, (Date.now() - reportedAt.getTime()) / 3_600_000);
-  return {
-    elapsedHours,
-    radiusKm: profile.selfMoveKmh * elapsedHours,
-    profile,
-  };
-}
-
-function drawSpeciesMovementMap(report, calculation) {
-  if (!speciesMovementMap || !speciesMovementLayers || !window.L) return;
-  const latitude = Number(report.latitude);
-  const longitude = Number(report.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
-  const origin = [latitude, longitude];
-  speciesMovementLayers.clearLayers();
-  window.L.marker(origin, { icon: markerIcon('발') }).addTo(speciesMovementLayers)
-    .bindPopup('<b>발견 지점</b><br />AI 판별 종 이동 범위의 중심').openPopup();
-  const radiusMeters = calculation.radiusKm * 1000;
-  if (radiusMeters > 0) {
-    window.L.circle(origin, { radius: radiusMeters, color: '#ef735f', weight: 2, fillColor: '#f48b78', fillOpacity: 0.2 })
-      .addTo(speciesMovementLayers)
-      .bindPopup(`<b>이동 가능 반경</b><br />${radiusMeters.toFixed(0)} m`);
-    speciesMovementMap.fitBounds(window.L.circle(origin, { radius: radiusMeters }).getBounds(), { padding: [36, 36], maxZoom: 15 });
-  } else {
-    speciesMovementMap.setView(origin, 15);
-  }
-}
-
-function renderSpeciesMovement(reports) {
-  const report = reports[0];
-  const hasCoordinates = Number.isFinite(Number(report?.latitude)) && Number.isFinite(Number(report?.longitude));
-  if (!report || !hasCoordinates) {
-    speciesMovementCard.hidden = true;
-    return;
-  }
-  const calculation = calculateSpeciesMovementRadius(report);
-  speciesMovementCard.hidden = false;
-  speciesMovementSpecies.textContent = report.species || '미확인 생물';
-  speciesMovementElapsed.textContent = `${calculation.elapsedHours.toFixed(1)}시간`;
-  speciesMovementRadius.textContent = calculation.radiusKm >= 1
-    ? `${calculation.radiusKm.toFixed(2)} km`
-    : `${Math.round(calculation.radiusKm * 1000)} m`;
-  speciesMovementDescription.textContent = `${report.species || '판별 종'}의 이동계수와 신고 시각부터 현재까지의 경과 시간으로 계산한 반경입니다.`;
-  drawSpeciesMovementMap(report, calculation);
 }
 
 async function loadLiveCurrent(stationCode) {

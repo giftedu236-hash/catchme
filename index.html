@@ -13,7 +13,6 @@
     <link rel="stylesheet" href="hero.css?v=20260807-hero" />
     <link rel="stylesheet" href="roles.css?v=20260807-roles" />
     <link rel="stylesheet" href="layer-fix.css?v=20260807-layerfix" />
-    <link rel="stylesheet" href="species-movement.css?v=20260807-species-radius" />
   <link rel="stylesheet" href="roles-view.css?v=20260807-roles-mapfix" />
   </head>
   <body>
@@ -151,7 +150,6 @@
         <div class="admin-heading"><div><p class="eyebrow">MANAGER CONSOLE</p><h2 id="adminTitle">접수 신고 분석</h2><p>이 브라우저에서 접수된 신고를 우선순위와 수색 정보로 정리합니다.</p></div><button class="admin-back" id="adminBack" type="button">신고자 화면으로</button></div>
         <div class="admin-summary"><article><span>접수 신고</span><b id="adminReportCount">0</b><small>건</small></article><article><span>우선 확인</span><b id="adminPriorityCount">0</b><small>건</small></article><article><span>최근 접수</span><b id="adminLatestTime">-</b><small>기준</small></article></div>
         <div class="admin-analysis-card"><div><span class="analysis-dot"></span><b>분석 기준</b><p>AI 후보 일치도 70% 이상은 우선 확인 대상으로 표시합니다. 수색 지도는 AI 일치도와 관계없이 모든 신고의 좌표·조류예보 정보를 바탕으로 표시합니다.</p></div><button id="clearReports" type="button">제출용 신고 기록 비우기</button></div>
-        <section class="species-movement-card" id="speciesMovementCard" hidden aria-labelledby="speciesMovementTitle"><div class="species-movement-header"><div><p class="eyebrow">AI SPECIES RANGE</p><h3 id="speciesMovementTitle">종 자체 이동 가능 범위</h3><p id="speciesMovementDescription">AI 판별 종과 경과 시간을 기준으로 계산합니다.</p></div><span class="species-movement-badge">해류 미반영</span></div><div class="species-movement-map" id="speciesMovementMap" aria-label="AI 판별 종의 이동 가능 범위 지도"></div><div class="species-movement-stats"><div><span>판별 종</span><b id="speciesMovementSpecies">-</b></div><div><span>경과 시간</span><b id="speciesMovementElapsed">-</b></div><div><span>이동 가능 반경</span><b id="speciesMovementRadius">-</b></div></div><p class="species-movement-note">※ 종별 이동계수와 신고 시각을 사용한 제출용 추정 범위입니다. 조류·파랑·장애물은 반영하지 않으며, 실제 현장 판단을 대체하지 않습니다.</p></section>
         <div class="admin-report-list" id="adminReportList" aria-live="polite"></div>
       </section>
     </main>
