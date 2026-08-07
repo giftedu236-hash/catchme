@@ -98,12 +98,6 @@ function startReportElapsedClock(createdAt) {
   if (activeReportCreatedAt) reportElapsedTimer = window.setInterval(updateReportElapsedClock, 1000);
 }
 
-function hideStaleForecast(message) {
-  if (searchLayers) searchLayers.clearLayers();
-  forecastSection.hidden = true;
-  forecastDisclaimer.textContent = message;
-}
-
 function renderAdminDashboard() {
   const reports = getStoredReports();
   startReportElapsedClock(reports[0]?.createdAt);
@@ -450,6 +444,30 @@ function drawSearchMap(location, station, calculation) {
   searchMap.fitBounds(mapBounds, { padding: [35, 35], maxZoom: 14 });
 }
 
+function drawFallbackSearchMap(location) {
+  if (!window.L || !searchMap || !searchLayers) return;
+  const originLatLng = [location.latitude, location.longitude];
+  const fallbackRadius = 3000;
+  searchLayers.clearLayers();
+  window.L.marker(originLatLng, { icon: markerIcon('발') }).addTo(searchLayers)
+    .bindPopup('<b>발견 지점</b>');
+  const fallbackCircle = window.L.circle(originLatLng, {
+    radius: fallbackRadius,
+    color: '#e75847',
+    weight: 2,
+    fillColor: '#f28a7c',
+    fillOpacity: 0.32,
+  }).addTo(searchLayers)
+    .bindPopup('<b>예상 수색 위치</b><br />발견 지점 주변 약 3.0 km 범위');
+  fallbackCircle.bringToFront();
+  searchMap.fitBounds(fallbackCircle.getBounds(), { padding: [35, 35], maxZoom: 14 });
+  forecastSection.hidden = false;
+  forecastStation.textContent = '발견 지점 주변 임시 수색 범위';
+  document.querySelector('#currentValue').textContent = '조류 계산 중';
+  document.querySelector('#distanceValue').textContent = '3.0 km 범위';
+  forecastDisclaimer.textContent = '※ 조류 계산 전에도 현장 확인을 시작할 수 있도록 발견 지점 주변 3 km를 임시 수색 범위로 표시합니다.';
+}
+
 function restoreLatestReportSearch(report) {
   const latitude = Number(report.latitude);
   const longitude = Number(report.longitude);
@@ -474,6 +492,7 @@ function setDiscoveryLocation(location, label) {
     discoveryMarker = window.L.marker([location.latitude, location.longitude], { icon: markerIcon('발') }).addTo(discoveryMap).bindPopup('<b>발견 지점</b>').openPopup();
     discoveryMap.setView([location.latitude, location.longitude], 14);
   }
+  drawFallbackSearchMap(locationState);
   refreshSearchForecast(true);
 }
 
@@ -503,7 +522,8 @@ async function refreshSearchForecast(silent = false) {
     drawSearchMap(locationState, actualStation, calculation);
     if (!silent) showToast('발견 좌표와 가장 가까운 조류예보 지점으로 수색 위치를 계산했습니다.');
   } catch (error) {
-    hideStaleForecast('현재 시각의 조류 API 값을 불러오지 못해 예상 수색 범위를 표시하지 않습니다.');
+    drawFallbackSearchMap(locationState);
+    forecastDisclaimer.textContent = '※ 조류 API 값을 불러오지 못해 발견 지점 주변 3 km를 임시 수색 범위로 표시합니다.';
     if (!silent) showToast('조류예보 API 값을 불러오지 못했습니다.');
   } finally {
     recalculate.disabled = false;
