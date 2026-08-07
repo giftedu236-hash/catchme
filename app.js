@@ -115,6 +115,8 @@ function renderAdminDashboard() {
     adminReportList.innerHTML = '<div class="admin-empty"><b>아직 접수된 신고가 없습니다.</b><span>신고자 화면에서 사진 분석 후 신고를 접수하면 이곳에 표시됩니다.</span></div>';
     return;
   }
+  const latestLocatedReport = reports.find((report) => Number.isFinite(Number(report.latitude)) && Number.isFinite(Number(report.longitude)));
+  if (latestLocatedReport) restoreLatestReportSearch(latestLocatedReport);
   adminReportList.innerHTML = reports.map((report) => {
     const priority = Number(report.confidence) >= 70;
     const coordinates = Number.isFinite(Number(report.latitude)) ? `${Number(report.latitude).toFixed(5)}, ${Number(report.longitude).toFixed(5)}` : '좌표 미선택';
@@ -304,6 +306,7 @@ const MAP_CENTER = [35.1796, 129.0756];
 let discoveryMap;
 let searchMap;
 let discoveryMarker;
+let discoverySearchCircle;
 let searchLayers;
 let locationState;
 
@@ -429,9 +432,34 @@ function drawSearchMap(location, station, calculation) {
   }).addTo(searchLayers)
     .bindPopup(`<b>예상 수색 위치</b><br />중심에서 약 ${(destinationRangeRadius / 1000).toFixed(1)} km 범위`);
   searchRangeCircle.bringToFront();
+  if (discoveryMap) {
+    if (discoverySearchCircle) discoverySearchCircle.remove();
+    discoverySearchCircle = window.L.circle(destinationLatLng, {
+      radius: destinationRangeRadius,
+      color: '#e75847',
+      weight: 2,
+      fillColor: '#f28a7c',
+      fillOpacity: 0.32,
+    }).addTo(discoveryMap)
+      .bindPopup(`<b>예상 수색 위치</b><br />중심에서 약 ${(destinationRangeRadius / 1000).toFixed(1)} km 범위`);
+    discoverySearchCircle.bringToFront();
+    discoveryMap.fitBounds(discoverySearchCircle.getBounds(), { padding: [28, 28], maxZoom: 14 });
+  }
   const mapBounds = window.L.latLngBounds([originLatLng, [station.latitude, station.longitude]]);
   mapBounds.extend(searchRangeCircle.getBounds());
   searchMap.fitBounds(mapBounds, { padding: [35, 35], maxZoom: 14 });
+}
+
+function restoreLatestReportSearch(report) {
+  const latitude = Number(report.latitude);
+  const longitude = Number(report.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+  if (report.foundAt) foundAtInput.value = report.foundAt;
+  if (report.species) primarySpecies.textContent = report.species;
+  setDiscoveryLocation(
+    { latitude, longitude },
+    report.location || '최근 신고 위치',
+  );
 }
 
 function setDiscoveryLocation(location, label) {
