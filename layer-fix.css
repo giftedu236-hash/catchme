@@ -1,0 +1,4 @@
+/* Leaflet controls use high stacking levels; app dialogs must always be above maps. */
+.role-portal { z-index: 1500; }
+.receipt-modal { z-index: 1600; }
+.toast { z-index: 1700; }
