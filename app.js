@@ -399,6 +399,16 @@ function calculateSearchDistance(current) {
   };
 }
 
+function searchAreaIcon(radiusKm) {
+  const diameter = Math.max(150, Math.min(240, 150 + radiusKm * 12));
+  return window.L.divIcon({
+    className: 'search-area-icon',
+    html: `<div class="search-area-visual"><span>예상 수색범위<br><b>반경 ${radiusKm.toFixed(1)} km</b></span></div>`,
+    iconSize: [diameter, diameter],
+    iconAnchor: [diameter / 2, diameter / 2],
+  });
+}
+
 async function loadLiveCurrent(stationCode) {
   const response = await fetch(`/api/current?obsCode=${encodeURIComponent(stationCode)}`);
   if (!response.ok) throw new Error('실시간 조류 API를 사용할 수 없습니다.');
@@ -425,6 +435,11 @@ function drawSearchMap(location, station, calculation) {
   }).addTo(searchLayers)
     .bindPopup(`<b>예상 수색 위치</b><br />중심에서 약 ${(destinationRangeRadius / 1000).toFixed(1)} km 범위`);
   searchRangeCircle.bringToFront();
+  window.L.marker(destinationLatLng, {
+    icon: searchAreaIcon(destinationRangeRadius / 1000),
+    interactive: false,
+    zIndexOffset: -500,
+  }).addTo(searchLayers);
   const mapBounds = window.L.latLngBounds([originLatLng, [station.latitude, station.longitude]]);
   mapBounds.extend(searchRangeCircle.getBounds());
   searchMap.fitBounds(mapBounds, { padding: [35, 35], maxZoom: 14 });
@@ -446,6 +461,11 @@ function drawFallbackSearchMap(location) {
   }).addTo(searchLayers)
     .bindPopup('<b>예상 수색 위치</b><br />발견 지점 주변 약 3.0 km 범위');
   fallbackCircle.bringToFront();
+  window.L.marker(originLatLng, {
+    icon: searchAreaIcon(fallbackRadius / 1000),
+    interactive: false,
+    zIndexOffset: -500,
+  }).addTo(searchLayers);
   searchMap.fitBounds(fallbackCircle.getBounds(), { padding: [35, 35], maxZoom: 14 });
   forecastSection.hidden = false;
   forecastStation.textContent = '발견 지점 주변 임시 수색 범위';

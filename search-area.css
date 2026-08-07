@@ -1,0 +1,33 @@
+.search-area-icon {
+  background: transparent;
+  border: 0;
+  pointer-events: none;
+}
+
+.search-area-visual {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border: 3px solid rgba(219, 67, 51, 0.78);
+  border-radius: 50%;
+  background: rgba(244, 112, 96, 0.28);
+  box-shadow: 0 0 0 7px rgba(244, 112, 96, 0.1);
+  color: #8f261d;
+  text-align: center;
+}
+
+.search-area-visual span {
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(112, 38, 29, 0.16);
+}
+
+.search-area-visual b {
+  color: #c43f31;
+  font-size: 12px;
+}
