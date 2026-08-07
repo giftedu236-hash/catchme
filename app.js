@@ -302,6 +302,9 @@ let searchMap;
 let discoveryMarker;
 let searchLayers;
 let locationState;
+let searchAreaVisualMarker;
+let searchAreaVisualCenter;
+let searchAreaVisualRadiusKm;
 
 const speciesProfiles = {
   '붉은불가사리': { driftRatio: 0.8, selfMoveKmh: 0.03, label: '저서성 불가사리 잠정 계수' },
@@ -374,6 +377,7 @@ function initializeMaps() {
   addBaseMap(discoveryMap);
   addBaseMap(searchMap);
   searchLayers = window.L.layerGroup().addTo(searchMap);
+  searchMap.on('zoomend', updateSearchAreaVisualSize);
   BUSAN_STATIONS.forEach((station) => {
     window.L.marker([station.latitude, station.longitude], { icon: markerIcon('조', 'station') })
       .addTo(discoveryMap)
@@ -391,22 +395,52 @@ function calculateSearchDistance(current) {
   const speedKmh = Number(current.speedCms) * 0.036;
   const currentDistance = speedKmh * elapsedHours * profile.driftRatio;
   const activeDistance = profile.selfMoveKmh * elapsedHours;
+  const distanceKm = currentDistance + activeDistance;
   return {
     elapsedHours,
     direction: compassDirection(current.directionDeg),
-    distanceKm: currentDistance + activeDistance,
+    distanceKm,
+    searchCenterDistanceKm: Math.max(distanceKm, 0.8),
     profile,
   };
 }
 
-function searchAreaIcon(radiusKm) {
-  const diameter = Math.max(150, Math.min(240, 150 + radiusKm * 12));
+function searchAreaIcon(radiusKm, diameter) {
+  const label = diameter >= 90
+    ? `<span>예상 수색범위<br><b>반경 ${radiusKm.toFixed(1)} km</b></span>`
+    : '';
   return window.L.divIcon({
     className: 'search-area-icon',
-    html: `<div class="search-area-visual"><span>예상 수색범위<br><b>반경 ${radiusKm.toFixed(1)} km</b></span></div>`,
+    html: `<div class="search-area-visual">${label}</div>`,
     iconSize: [diameter, diameter],
     iconAnchor: [diameter / 2, diameter / 2],
   });
+}
+
+function updateSearchAreaVisualSize() {
+  if (!searchMap || !searchAreaVisualMarker || !searchAreaVisualCenter || !searchAreaVisualRadiusKm) return;
+  if (!searchMap.hasLayer(searchAreaVisualMarker)) return;
+  const centerPoint = searchMap.latLngToLayerPoint(searchAreaVisualCenter);
+  const edge = destinationPoint(
+    { latitude: searchAreaVisualCenter[0], longitude: searchAreaVisualCenter[1] },
+    90,
+    searchAreaVisualRadiusKm,
+  );
+  const edgePoint = searchMap.latLngToLayerPoint([edge.latitude, edge.longitude]);
+  const pixelRadius = Math.hypot(edgePoint.x - centerPoint.x, edgePoint.y - centerPoint.y);
+  const diameter = Math.max(24, Math.min(600, pixelRadius * 2));
+  searchAreaVisualMarker.setIcon(searchAreaIcon(searchAreaVisualRadiusKm, diameter));
+}
+
+function addSearchAreaVisual(center, radiusKm) {
+  searchAreaVisualCenter = center;
+  searchAreaVisualRadiusKm = radiusKm;
+  searchAreaVisualMarker = window.L.marker(center, {
+    icon: searchAreaIcon(radiusKm, 150),
+    interactive: false,
+    zIndexOffset: -500,
+  }).addTo(searchLayers);
+  updateSearchAreaVisualSize();
 }
 
 async function loadLiveCurrent(stationCode) {
@@ -418,7 +452,8 @@ async function loadLiveCurrent(stationCode) {
 function drawSearchMap(location, station, calculation) {
   if (!searchMap || !searchLayers) return;
   searchLayers.clearLayers();
-  const destination = destinationPoint(location, calculation.directionDeg, calculation.distanceKm);
+  searchAreaVisualMarker = null;
+  const destination = destinationPoint(location, calculation.directionDeg, calculation.searchCenterDistanceKm);
   const originLatLng = [location.latitude, location.longitude];
   const destinationLatLng = [destination.latitude, destination.longitude];
   window.L.marker(originLatLng, { icon: markerIcon('발') }).addTo(searchLayers).bindPopup('<b>발견 지점</b>');
@@ -435,11 +470,7 @@ function drawSearchMap(location, station, calculation) {
   }).addTo(searchLayers)
     .bindPopup(`<b>예상 수색 위치</b><br />중심에서 약 ${(destinationRangeRadius / 1000).toFixed(1)} km 범위`);
   searchRangeCircle.bringToFront();
-  window.L.marker(destinationLatLng, {
-    icon: searchAreaIcon(destinationRangeRadius / 1000),
-    interactive: false,
-    zIndexOffset: -500,
-  }).addTo(searchLayers);
+  addSearchAreaVisual(destinationLatLng, destinationRangeRadius / 1000);
   const mapBounds = window.L.latLngBounds([originLatLng, [station.latitude, station.longitude]]);
   mapBounds.extend(searchRangeCircle.getBounds());
   searchMap.fitBounds(mapBounds, { padding: [35, 35], maxZoom: 14 });
@@ -450,6 +481,7 @@ function drawFallbackSearchMap(location) {
   const originLatLng = [location.latitude, location.longitude];
   const fallbackRadius = 3000;
   searchLayers.clearLayers();
+  searchAreaVisualMarker = null;
   window.L.marker(originLatLng, { icon: markerIcon('발') }).addTo(searchLayers)
     .bindPopup('<b>발견 지점</b>');
   const fallbackCircle = window.L.circle(originLatLng, {
@@ -461,11 +493,7 @@ function drawFallbackSearchMap(location) {
   }).addTo(searchLayers)
     .bindPopup('<b>예상 수색 위치</b><br />발견 지점 주변 약 3.0 km 범위');
   fallbackCircle.bringToFront();
-  window.L.marker(originLatLng, {
-    icon: searchAreaIcon(fallbackRadius / 1000),
-    interactive: false,
-    zIndexOffset: -500,
-  }).addTo(searchLayers);
+  addSearchAreaVisual(originLatLng, fallbackRadius / 1000);
   searchMap.fitBounds(fallbackCircle.getBounds(), { padding: [35, 35], maxZoom: 14 });
   forecastSection.hidden = false;
   forecastStation.textContent = '발견 지점 주변 임시 수색 범위';
@@ -524,7 +552,10 @@ async function refreshSearchForecast(silent = false) {
     updateReportElapsedClock();
     document.querySelector('#distanceValue').textContent = `${calculation.distanceKm.toFixed(1)} km`;
     forecastStation.textContent = `${actualStation.name} (${station.distanceKm.toFixed(1)} km)`;
-    forecastDisclaimer.textContent = `※ 발견 좌표에서 가장 가까운 공공 조류예보 지점(${actualStation.name}, ${station.distanceKm.toFixed(1)} km)의 유향·유속을 적용했습니다.${isSlackWater ? ' 현재 응답은 정조(유속 0 cm/s)이므로 넓은 불확실성 범위만 표시합니다.' : ''} ${calculation.profile.label}(${Math.round(calculation.profile.driftRatio * 100)}% 표류)와 ${calculation.elapsedHours.toFixed(1)}시간 경과를 반영한 수색 우선 위치이며, 실제 이동 경로를 확정하지 않습니다.`;
+    const minimumOffsetNote = calculation.distanceKm < 0.8
+      ? ' 수색 영역은 발견 지점과 겹치지 않도록 조류 방향으로 0.8 km 이동해 표시한 시연용 최소 간격입니다.'
+      : '';
+    forecastDisclaimer.textContent = `※ 발견 좌표에서 가장 가까운 공공 조류예보 지점(${actualStation.name}, ${station.distanceKm.toFixed(1)} km)의 유향·유속을 적용했습니다.${isSlackWater ? ' 현재 응답은 정조(유속 0 cm/s)이므로 넓은 불확실성 범위만 표시합니다.' : ''} ${calculation.profile.label}(${Math.round(calculation.profile.driftRatio * 100)}% 표류)와 ${calculation.elapsedHours.toFixed(1)}시간 경과를 반영한 수색 우선 위치입니다.${minimumOffsetNote} 실제 이동 경로를 확정하지 않습니다.`;
     drawSearchMap(locationState, actualStation, calculation);
     if (!silent) showToast('발견 좌표와 가장 가까운 조류예보 지점으로 수색 위치를 계산했습니다.');
   } catch (error) {
